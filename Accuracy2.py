@@ -37,32 +37,32 @@ def acc_det(data, name):
     epochs = df.index.values.reshape(-1, 1)
     regression_stats = {}
     
-    # Subplot 3: Linearized Accuracy with Linear Regression (Squared Transform)
+    # Subplot 3: Linearized Accuracy with Linear Regression (Log Transform)
     plt.subplot(2, 2, 3)
     
-    # Train Accuracy - squared transform: y^2 vs x
+    # Train Accuracy - log transform for saturation curve: log(1-y) vs x
     train_acc = df['accuracy'].values.reshape(-1, 1)
-    train_acc_sq = train_acc ** 2
+    train_acc_log = np.log(1 - train_acc + 1e-10)  # Add small epsilon to avoid log(0)
     model_train_acc = LinearRegression()
-    model_train_acc.fit(epochs, train_acc_sq)
-    train_acc_sq_pred = model_train_acc.predict(epochs)
+    model_train_acc.fit(epochs, train_acc_log)
+    train_acc_log_pred = model_train_acc.predict(epochs)
     
-    plt.scatter(df.index, train_acc_sq, label='(Train Accuracy)^2', marker='o', alpha=0.6)
-    plt.plot(df.index, train_acc_sq_pred, label='Train Accuracy Linear Fit', linestyle='-', linewidth=2)
+    plt.scatter(df.index, train_acc_log, label='log(1 - Train Accuracy)', marker='o', alpha=0.6)
+    plt.plot(df.index, train_acc_log_pred, label='Train Accuracy Linear Fit', linestyle='-', linewidth=2)
     
-    # Val Accuracy - squared transform
+    # Val Accuracy - log transform
     val_acc = df['val_accuracy'].values.reshape(-1, 1)
-    val_acc_sq = val_acc ** 2
+    val_acc_log = np.log(1 - val_acc + 1e-10)  # Add small epsilon to avoid log(0)
     model_val_acc = LinearRegression()
-    model_val_acc.fit(epochs, val_acc_sq)
-    val_acc_sq_pred = model_val_acc.predict(epochs)
+    model_val_acc.fit(epochs, val_acc_log)
+    val_acc_log_pred = model_val_acc.predict(epochs)
     
-    plt.scatter(df.index, val_acc_sq, label='(Val Accuracy)^2', marker='x', alpha=0.6)
-    plt.plot(df.index, val_acc_sq_pred, label='Val Accuracy Linear Fit', linestyle='--', linewidth=2)
+    plt.scatter(df.index, val_acc_log, label='log(1 - Val Accuracy)', marker='x', alpha=0.6)
+    plt.plot(df.index, val_acc_log_pred, label='Val Accuracy Linear Fit', linestyle='--', linewidth=2)
     
-    plt.title('Linearized Accuracy (Squared Transform)')
+    plt.title('Linearized Accuracy (Log Transform)')
     plt.xlabel('Epoch')
-    plt.ylabel('(Accuracy)^2')
+    plt.ylabel('log(1 - Accuracy)')
     plt.legend()
     plt.grid(True)
     
@@ -70,17 +70,19 @@ def acc_det(data, name):
     regression_stats['train_accuracy'] = {
         'slope': model_train_acc.coef_[0][0],
         'intercept': model_train_acc.intercept_[0],
-        'r2_score': r2_score(train_acc_sq, train_acc_sq_pred),
-        'rmse': root_mean_squared_error(train_acc_sq, train_acc_sq_pred),
-        'predicted_limit': np.sqrt(model_train_acc.intercept_[0]) if model_train_acc.intercept_[0] > 0 else None
+        'r2_score': r2_score(train_acc_log, train_acc_log_pred),
+        'rmse': root_mean_squared_error(train_acc_log, train_acc_log_pred),
+        'decay_rate': -model_train_acc.coef_[0][0],
+        'predicted_limit': 1.0
     }
     
     regression_stats['val_accuracy'] = {
         'slope': model_val_acc.coef_[0][0],
         'intercept': model_val_acc.intercept_[0],
-        'r2_score': r2_score(val_acc_sq, val_acc_sq_pred),
-        'rmse': root_mean_squared_error(val_acc_sq, val_acc_sq_pred),
-        'predicted_limit': np.sqrt(model_val_acc.intercept_[0]) if model_val_acc.intercept_[0] > 0 else None
+        'r2_score': r2_score(val_acc_log, val_acc_log_pred),
+        'rmse': root_mean_squared_error(val_acc_log, val_acc_log_pred),
+        'decay_rate': -model_val_acc.coef_[0][0],
+        'predicted_limit': 1.0
     }
     
     # Subplot 4: Linearized Loss with Linear Regression (Log Transform)
